@@ -11,8 +11,10 @@ Parameters:
     - t3.large
   VirtualPrivateCloud:
     Type: AWS::EC2::VPC::Id
+    Default: vpc-08f43a79b185eea81
   SubnetPublic:
     Type: AWS::EC2::Subnet::Id
+    Default: subnet-0616bd796c05783ac
 
 
 Resources:
