@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Stack for CFN Demos"
+Parameters:
+  EC2Type:
+    Description: The type of instance to be provisioned
+    Type: String
+    Default: t3.medium
+    AllowedValues:
+    - t3.small
+    - t3.medium
+    - t3.large
+  VirtualPrivateCloud:
+    Type: AWS::EC2::VPC::Id
+  SubnetPublic:
+    Type: AWS::EC2::Subnet::Id
+
+
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    DependsOn:
+      - SecurityGroup
+    Properties:
+      InstanceType: !Ref EC2Type
+      IamInstanceProfile: "AmazonSSMRoleForInstancesQuickSetup"
+      Tags:
+      - Key: Name
+        Value: "Web server"
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          DeleteOnTermination: 'true'
+          VolumeSize: '10'
+          VolumeType: gp2
+      ImageId: "ami-018c1c51c7a13e363"
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: 'true'
+        DeleteOnTermination: 'true'
+        DeviceIndex: 0
+        SubnetId: !Ref SubnetPublic
+        GroupSet:
+        - Ref: SecurityGroup
+      UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/sh
+              yum -y install httpd php mysql php-mysql
+              chkconfig httpd on
+              systemctl start httpd
+              if [ ! -f /var/www/html/immersion-day-app.tar.gz ]; then
+                cd /var/www/html
+                wget https://kr-id-general.workshop.aws/sh/immersion-day-app.tar.gz
+                tar xvfz immersion-day-app.tar.gz
+                chown apache:root /var/www/html/rds.conf.php
+              fi
+              yum -y update
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Web server EC2 security group'
+      SecurityGroupIngress:
+        - CidrIp: '0.0.0.0/0'
+          Description : HTTP connection 
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+      VpcId: !Ref VirtualPrivateCloud
+
+Outputs:
+  EC2IpAddress:
+    Description: "EC2 IP Address"
+    Value: !GetAtt EC2Instance.PublicIp
